@@ -1,4 +1,5 @@
 // Button.h
+// Este arquivo é apenas o "índice" ou "contrato" da classe.
 
 #ifndef BUTTON_H
 #define BUTTON_H
@@ -10,12 +11,10 @@ public:
     // Construtor
     Button(uint8_t pin);
 
-    // Métodos públicos
     void inicializar();
     bool foiPressionado();
 
 private:
-    // Variáveis privadas
     uint8_t _pin;
     unsigned long _ultimoTempoDebounce;
     unsigned long _delayDebounce;

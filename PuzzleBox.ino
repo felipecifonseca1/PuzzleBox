@@ -1,7 +1,3 @@
-// PuzzleBox.ino
-
-// --- 1. Includes para as Classes dos Componentes ---
-
 #include "DisplayOLED.h"       // Para o display OLED
 #include "MPU6050.h"           // Para o acelerômetro MPU6050
 #include "LDR.h"               // Para o sensor LDR
@@ -11,7 +7,7 @@
 #include "Keypad.h"            // Para o teclado
 #include "Genius.h"            // Para a lógica do jogo Genius 
 
-// --- 2. Definições do Sistema  ---
+// --- Definições do Sistema  ---
 
 // Estados da Máquina 
 enum Estado {
@@ -62,7 +58,7 @@ enum Acao {
     ACAO_RESETAR_JOGO_COMPLETO       // Reseta todo o sistema para o estado IDLE 
 };
 
-// --- 3. Variáveis Globais da Máquina de Estados ---
+// --- Variáveis Globais da Máquina de Estados ---
 int estadoAtual = IDLE;
 int codigoEventoAtual = NENHUM_EVENTO;
 int eventoInterno = NENHUM_EVENTO; // Eventos gerados por ações
@@ -71,13 +67,15 @@ int codigoAcaoAtual;
 // Matrizes de Transição 
 int proximoEstadoDaTransicao[NUM_ESTADOS][NUM_EVENTOS];
 int acaoDaTransicao[NUM_ESTADOS][NUM_EVENTOS];
+ 
+// Variáveis Globais 
+const int PINO_BOTAO_INICIAR = 15;
+const int PINO_BOTAO_RESET = 14;
 
-// --- 4. Instanciação dos Objetos dos Componentes ---
+// ---  Instanciação dos Objetos dos Componentes ---
 DisplayOLED displayOLED; // Objeto para o display
 MPU6050 acelerometro; // Objeto para o MPU6050
 LDR ldrSensor; // Objeto para o LDR
-
-// Exemplo para botões:
 Button botaoIniciar(PINO_BOTAO_INICIAR);
 Button botaoReset(PINO_BOTAO_RESET);
 
@@ -91,7 +89,7 @@ Genius jogoGenius; // Esta classe vai encapsular a lógica do Genius
 // Variável para armazenar o código secreto
 const char* CODIGO_PREDEFINIDO = "1234"; // Exemplo de código
 
-// --- 5. Função setup() ---
+// --- Função setup() ---
 void setup() {
     Serial.begin(115200); // Taxa de comunicação comum para ESP32
     Serial.println("Iniciando Puzzle Box...");
@@ -119,7 +117,6 @@ void setup() {
     displayOLED.exibirMensagem("Puzzle Box", "Pronta!"); //  (Exemplo)
 }
 
-// --- 6. Função loop() - Motor da Máquina de Estados ---
 void loop() {
     if (eventoInterno == NENHUM_EVENTO) {
         codigoEventoAtual = obterEvento(); // Verifica eventos externos
@@ -142,7 +139,7 @@ void loop() {
     delay(10); // Pequeno delay para estabilidade, ajuste conforme necessário
 }
 
-// --- 7. Função iniciaMaquinaEstados() ---
+// --- Função iniciaMaquinaEstados() ---
 void iniciaMaquinaEstados() {
     // Inicializa as matrizes com valores padrão (permanecer no mesmo estado, nenhuma ação)
     for (int i = 0; i < NUM_ESTADOS; i++) {
@@ -207,7 +204,7 @@ void iniciaMaquinaEstados() {
 }
 
 
-// --- 8. Função obterEvento() ---
+// --- Função obterEvento() ---
 int obterEvento() {
     // Verificar botão de reset primeiro, pois ele tem prioridade e pode ocorrer em qualquer estado.
     if (botaoReset.foiPressionado()) { //  (Supondo que .foiPressionado() faz debounce e retorna true na borda de subida)
@@ -273,7 +270,7 @@ int obterEvento() {
     return NENHUM_EVENTO;
 }
 
-// --- 9. Função executarAcao() ---
+// --- Função executarAcao() ---
 int executarAcao(int acao) {
     int eventoGeradoInternamente = NENHUM_EVENTO;
 
@@ -377,7 +374,7 @@ int executarAcao(int acao) {
     return eventoGeradoInternamente;
 }
 
-// --- 10. Funções Helper para a Tabela de Transição ---
+// --- Funções Helper para a Tabela de Transição ---
 int obterAcaoDaTabela(int estadoConsultar, int eventoConsultar) {
     if (estadoConsultar >= 0 && estadoConsultar < NUM_ESTADOS &&
         eventoConsultar >= 0 && eventoConsultar < NUM_EVENTOS) {
@@ -393,3 +390,6 @@ int obterProximoEstadoDaTabela(int estadoConsultar, int eventoConsultar) {
     }
     return estadoConsultar; // Segurança: permanece no estado atual
 }
+
+
+
