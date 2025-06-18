@@ -1,6 +1,5 @@
-// AccelerometerMPU6050.cpp
-
 #include "AccelerometerMPU6050.h"
+#include "Arduino.h"
 
 // Construtor
 AccelerometerMPU6050::AccelerometerMPU6050() : _filter() {

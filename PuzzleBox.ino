@@ -71,6 +71,7 @@ int acaoDaTransicao[NUM_ESTADOS][NUM_EVENTOS];
 // Variáveis Globais 
 const int PINO_BOTAO_INICIAR = 23;
 const int PINO_BOTAO_RESET = 15;
+const int PINO_BUZZER = 25;
 
 // ---  Instanciação dos Objetos dos Componentes ---
 DisplayOLED displayOLED; // Objeto para o display
@@ -78,16 +79,14 @@ AccelerometerMPU6050 acelerometro; // Objeto para o MPU6050
 LDR ldrSensor; // Objeto para o LDR
 Button botaoIniciar(PINO_BOTAO_INICIAR);
 Button botaoReset(PINO_BOTAO_RESET);
-
-LEDController ledsGenius; // Ou gerenciado dentro da classe Genius
-Buzzer buzzer;
+LEDController ledsGenius; 
+Buzzer buzzer(PINO_BUZZER);
 Keypad keypad;
 
-Genius jogoGenius; // Esta classe vai encapsular a lógica do Genius 
-                       // e provavelmente usará 'ledsGenius' e objetos 'Button'
+Genius jogoGenius; 
 
 // Variável para armazenar o código secreto
-const char* CODIGO_PREDEFINIDO = "1234"; // Exemplo de código
+const char* CODIGO_PREDEFINIDO = "1234"; // Mudar depois
 
 // --- Função setup() ---
 void setup() {
@@ -95,17 +94,17 @@ void setup() {
     Serial.println("Iniciando Puzzle Box...");
 
     // Inicializar todos os componentes
-    displayOLED.inicializar(); // (Exemplo de método de inicialização)
+    displayOLED.inicializar(); 
     acelerometro.inicializar();
     ldrSensor.inicializar();
     botaoIniciar.inicializar();
     botaoReset.inicializar();
-    ledsGenius.inicializar(); // (Se for uma classe separada)
+    ledsGenius.inicializar(); 
     buzzer.inicializar();
     keypad.inicializar();
     jogoGenius.inicializar(&ledsGenius /*, &botoesGenius*/); // Passar referências se necessário
 
-    // Inicializar a máquina de estados (popular as tabelas)
+    // Inicializar a máquina de estados
     iniciaMaquinaEstados();
 
     // Estado inicial e ação inicial
@@ -114,7 +113,7 @@ void setup() {
     executarAcao(ACAO_INICIALIZAR_DISPLAY_BEMVINDO); // Mostra "Puzzle Box Pronta"
 
     Serial.println("Puzzle Box Pronta.");
-    displayOLED.exibirMensagem("Puzzle Box", "Pronta!"); //  (Exemplo)
+    displayOLED.exibirMensagem("Puzzle Box", "Pronta!"); 
 }
 
 void loop() {
@@ -207,7 +206,7 @@ void iniciaMaquinaEstados() {
 // --- Função obterEvento() ---
 int obterEvento() {
     // Verificar botão de reset primeiro, pois ele tem prioridade e pode ocorrer em qualquer estado.
-    if (botaoReset.foiPressionado()) { //  (Supondo que .foiPressionado() faz debounce e retorna true na borda de subida)
+    if (botaoReset.foiPressionado()) { 
         return BOTAO_RESET_PRESSIONADO;
     }
 

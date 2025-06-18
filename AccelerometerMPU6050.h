@@ -1,5 +1,3 @@
-// AccelerometerMPU6050.h
-
 #ifndef ACCELEROMETER_MPU6050_H
 #define ACCELEROMETER_MPU6050_H
 

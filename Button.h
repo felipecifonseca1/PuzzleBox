@@ -1,6 +1,3 @@
-// Button.h
-// Este arquivo é apenas o "índice" ou "contrato" da classe.
-
 #ifndef BUTTON_H
 #define BUTTON_H
 
