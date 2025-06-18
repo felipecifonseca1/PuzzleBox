@@ -1,5 +1,5 @@
 #include "DisplayOLED.h"       // Para o display OLED
-#include "MPU6050.h"           // Para o acelerômetro MPU6050
+#include "AccelerometerMPU6050.h"           // Para o acelerômetro MPU6050
 #include "LDR.h"               // Para o sensor LDR
 #include "Button.h"            // Para os botões (iniciar, reset, genius)
 #include "LEDController.h"     // Para controlar os LEDs (especialmente do Genius)
@@ -69,12 +69,12 @@ int proximoEstadoDaTransicao[NUM_ESTADOS][NUM_EVENTOS];
 int acaoDaTransicao[NUM_ESTADOS][NUM_EVENTOS];
  
 // Variáveis Globais 
-const int PINO_BOTAO_INICIAR = 15;
-const int PINO_BOTAO_RESET = 14;
+const int PINO_BOTAO_INICIAR = 23;
+const int PINO_BOTAO_RESET = 15;
 
 // ---  Instanciação dos Objetos dos Componentes ---
 DisplayOLED displayOLED; // Objeto para o display
-MPU6050 acelerometro; // Objeto para o MPU6050
+AccelerometerMPU6050 acelerometro; // Objeto para o MPU6050
 LDR ldrSensor; // Objeto para o LDR
 Button botaoIniciar(PINO_BOTAO_INICIAR);
 Button botaoReset(PINO_BOTAO_RESET);
