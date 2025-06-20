@@ -1,17 +1,17 @@
+// Button.cpp
+
 #include "Button.h"
 
-// Contrutor
 Button::Button(uint8_t pin) {
     _pin = pin;
     _ultimoTempoDebounce = 0;
-    _delayDebounce = 50; 
+    _delayDebounce = 50;
     _ultimoEstadoBotao = HIGH;
     _ultimoEstadoLeitura = HIGH;
 }
 
 void Button::inicializar() {
     pinMode(_pin, INPUT_PULLUP);
-
     _ultimoEstadoBotao = digitalRead(_pin);
     _ultimoEstadoLeitura = _ultimoEstadoBotao;
 }
@@ -25,10 +25,8 @@ bool Button::foiPressionado() {
     }
 
     if ((millis() - _ultimoTempoDebounce) > _delayDebounce) {
-        
         if (leituraAtual != _ultimoEstadoBotao) {
             _ultimoEstadoBotao = leituraAtual;
-
             if (_ultimoEstadoBotao == LOW) {
                 estadoPressionado = true;
             }
@@ -36,6 +34,5 @@ bool Button::foiPressionado() {
     }
 
     _ultimoEstadoLeitura = leituraAtual;
-    
     return estadoPressionado;
 }
