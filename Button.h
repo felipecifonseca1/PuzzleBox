@@ -1,3 +1,5 @@
+// Button.h
+
 #ifndef BUTTON_H
 #define BUTTON_H
 
@@ -5,9 +7,7 @@
 
 class Button {
 public:
-    // Construtor
     Button(uint8_t pin);
-
     void inicializar();
     bool foiPressionado();
 
