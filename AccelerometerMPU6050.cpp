@@ -1,8 +1,5 @@
-// AccelerometerMPU6050.cpp
-
 #include "AccelerometerMPU6050.h"
 
-// Construtor
 AccelerometerMPU6050::AccelerometerMPU6050() : _filter() {
 }
 
@@ -37,21 +34,18 @@ void AccelerometerMPU6050::atualizar() {
     _pitch = _filter.getPitch();
 }
 
-// Define a inclinação alvo em graus
 void AccelerometerMPU6050::definirInclinacaoAlvo(float targetRoll, float targetPitch, float tolerancia) {
     _targetRoll = targetRoll;
     _targetPitch = targetPitch;
     _tolerance = tolerancia;
 }
 
-// Verifica se a inclinação atual corresponde ao alvo
 bool AccelerometerMPU6050::verificarInclinacaoCorreta() {
     bool rollOk = abs(_roll - _targetRoll) < _tolerance;
     bool pitchOk = abs(_pitch - _targetPitch) < _tolerance;
     return rollOk && pitchOk;
 }
 
-// Imprime os ângulos de Roll e Pitch
 void AccelerometerMPU6050::imprimirLeituras() {
     Serial.print("Orientacao (Graus) - ");
     Serial.print("Roll: ");

@@ -1,6 +1,6 @@
 #include "GeniusGame.h"
 
-// Constantes para controlar o tempo do pisca-pisca (em milissegundos)
+// Constantes para controlar o tempo do pisca-pisca 
 const int LED_ON_DURATION = 600; 
 const int LED_OFF_DURATION = 200; 
 
@@ -44,7 +44,7 @@ void GeniusGame::iniciarNovoJogo() {
 int GeniusGame::_lerBotoes() {
     for (int i = 0; i < GENIUS_SEQUENCE_LENGTH; i++) {
         if (digitalRead(_buttonPins[i]) == LOW) {
-            delay(500); 
+            vTaskDelay(pdMS_TO_TICKS(200)); 
             while(digitalRead(_buttonPins[i]) == LOW); 
             return i;
         }
@@ -53,7 +53,6 @@ int GeniusGame::_lerBotoes() {
 }
 
 bool GeniusGame::isJogoFinalizado() {
-    // Agora o jogo só é considerado "finalizado" em caso de vitória.
     return _estadoAtual == VITORIA;
 }
 
@@ -119,14 +118,13 @@ void GeniusGame::loop() {
             _display.exibirMensagem("Genius:", "ERROU!", 2);
             _buzzer.tocarSomErro();
             // Pausa para o jogador ver a mensagem de erro.
-            delay(1500); 
+            vTaskDelay(pdMS_TO_TICKS(1500)); 
 
             iniciarNovoJogo(); 
             break;
         }
 
         case OCIOSO:
-            // Não faz nada até que um novo jogo seja iniciado de fora (após uma vitória).
             break;
     }
 }

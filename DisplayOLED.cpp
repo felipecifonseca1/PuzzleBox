@@ -7,7 +7,6 @@ DisplayOLED::DisplayOLED() : _display(LARGURA_TELA, ALTURA_TELA, &Wire, -1) {
 
 // Implementação do método de inicialização
 bool DisplayOLED::inicializar() {
-    // O SSD1306_SWITCHCAPVCC diz para gerar a tensão do display a partir dos 3.3V
     if (!_display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
         Serial.println(F("Falha ao inicializar o Display OLED"));
         return false;
@@ -49,13 +48,11 @@ void DisplayOLED::animacaoCarregando(int duracao_ms) {
         _display.setTextSize(2);
         _display.setTextColor(SSD1306_WHITE);
 
-        // 1. Monta o texto do quadro atual
         String texto = "Carregando";
         for (int i = 0; i < (frame % 4); i++) {
             texto += ".";
         }
 
-        // 2. Calcula as dimensões e a posição para centralizar o texto
         int16_t x1, y1;
         uint16_t w, h;
         _display.getTextBounds(texto, 0, 0, &x1, &y1, &w, &h); // Pega a largura (w) e altura (h) do texto
@@ -64,14 +61,13 @@ void DisplayOLED::animacaoCarregando(int duracao_ms) {
         int cursorX = (LARGURA_TELA - w) / 2;
         int cursorY = (ALTURA_TELA - h) / 2;
 
-        // 3. Define o cursor na posição calculada e imprime o texto
         _display.setCursor(cursorX, cursorY);
         _display.print(texto);
         
-        _display.display(); // Mostra o quadro na tela
+        _display.display(); 
         
         frame++;
-        delay(300); // Um delay um pouco maior para a animação ficar mais agradável
+        vTaskDelay(pdMS_TO_TICKS(300));
     }
 }
 

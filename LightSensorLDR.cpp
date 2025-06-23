@@ -1,5 +1,3 @@
-// LightSensorLDR.cpp
-
 #include "LightSensorLDR.h"
 #include "Arduino.h"
 
@@ -18,9 +16,9 @@ float LightSensorLDR::lerNivelDeLuz() {
     long totalAnalogValue = 0;
     for (int i = 0; i < NUM_LEITURAS; i++) {
         totalAnalogValue += analogRead(_pin);
-        delay(1);
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
-    // Média de leituras de 12 bits (nativo do ESP32)
+    // Média de leituras de 12 bits 
     int analogValue12bit = totalAnalogValue / NUM_LEITURAS;
 
     float resistance = 0;
@@ -42,12 +40,9 @@ float LightSensorLDR::lerNivelDeLuz() {
         }
 
         case LdrCalculation::MANUFACTURER_EXAMPLE: {
-            // Adapta a leitura de 12 bits do ESP32 para a escala de 10 bits do exemplo
+          
             int analogValue10bit = analogValue12bit / 4;
-
-            // Aplica as fórmulas e valores EXATOS do exemplo do fabricante
-            float voltage = analogValue10bit / 1024.0 * 5.0; //
-            
+            float voltage = analogValue10bit / 1024.0 * 5.0; //   
             // Proteção para evitar divisão por zero ou valores negativos
             if (voltage >= 5.0) voltage = 4.99;
 

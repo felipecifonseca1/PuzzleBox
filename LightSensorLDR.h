@@ -1,5 +1,3 @@
-// LightSensorLDR.h
-
 #ifndef LIGHT_SENSOR_LDR_H
 #define LIGHT_SENSOR_LDR_H
 
@@ -7,13 +5,10 @@
 
 class LightSensorLDR {
 public:
-    // O enum agora define o método de cálculo, incluindo o modo de compatibilidade.
     enum class LdrCalculation {
-        // Usa a fórmula padrão para o circuito: 5V -> Resistor Fixo -> Pino -> LDR -> GND
+       
         LDR_TO_GND,
-        // Usa a fórmula padrão para o circuito: 5V -> LDR -> Pino -> Resistor Fixo -> GND
         LDR_TO_VCC,
-        // Usa a lógica exata do código de exemplo do fabricante (5V, 10-bit, 2k Resistor).
         MANUFACTURER_EXAMPLE
     };
 
@@ -35,8 +30,8 @@ private:
     const float FIXED_RESISTOR = 10000.0;
     
     // Constantes do LDR
-    const float GAMMA = 0.7; //
-    const float RL10 = 50; //
+    const float GAMMA = 0.7; 
+    const float RL10 = 50; 
     const int NUM_LEITURAS = 10;
 };
 

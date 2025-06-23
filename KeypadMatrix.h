@@ -1,5 +1,3 @@
-// KeypadMatrix.h
-
 #ifndef KEYPAD_MATRIX_H
 #define KEYPAD_MATRIX_H
 
@@ -12,8 +10,6 @@ class KeypadMatrix {
 public:
     // O construtor recebe os arrays de pinos para as linhas e colunas
     KeypadMatrix(byte* pinosLinhas, byte* pinosColunas);
-
-    // Retorna a tecla pressionada no momento, ou NO_KEY se nenhuma for pressionada
     char obterTeclaPressionada();
 
 private:

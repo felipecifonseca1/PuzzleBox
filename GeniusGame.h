@@ -16,7 +16,6 @@ public:
     bool isJogoFinalizado();
 
 private:
-    // Máquina de estados para controlar o fluxo do jogo de forma precisa
     enum GameState {
         OCIOSO,
         MOSTRANDO_LED,      // Estado para LIGAR o LED da sequência
