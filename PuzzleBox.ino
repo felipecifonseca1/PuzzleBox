@@ -1,392 +1,267 @@
-#include "DisplayOLED.h"       // Para o display OLED
-#include "AccelerometerMPU6050.h"           // Para o acelerômetro MPU6050
-#include "LDR.h"               // Para o sensor LDR
-#include "Button.h"            // Para os botões (iniciar, reset, genius)
-#include "LEDController.h"     // Para controlar os LEDs (especialmente do Genius)
-#include "Buzzer.h"            // Para o buzzer
-#include "KeypadMatrix.h"            // Para o teclado
-#include "Genius.h"            // Para a lógica do jogo Genius 
+// Includes para as classes dos componentes 
+#include "DisplayOLED.h"
+#include "Buzzer.h"
+#include "Button.h"
+#include "AccelerometerMPU6050.h"
+#include "KeypadMatrix.h"
+#include "LightSensorLDR.h"
+#include "GeniusGame.h"
 
-// --- Definições do Sistema  ---
+/***********************************************************************
+ Definições do Sistema 
+ ***********************************************************************/
 
-// Estados da Máquina 
+// --- Estados da Máquina ---
 enum Estado {
-    IDLE,                      // Sistema ligado, aguardando início 
-    VERIFICANDO_INCLINACAO,    // Jogador ajusta inclinação 
-    VERIFICANDO_LDR,           // Jogador ajusta luminosidade no LDR 
-    JOGO_GENIUS_MOSTRAR,       // Sistema mostra sequência de LEDs 
-    JOGO_GENIUS_JOGADOR,       // Jogador tenta repetir a sequência 
-    ENTRADA_CODIGO_SECRETO,    // Jogador digita código no keypad 
-    FINALIZADO,                // Puzzle resolvido, caixa aberta 
-    NUM_ESTADOS                // Helper para tamanho de arrays
+    AGUARDANDO,                // 0: Sistema ligado, aguardando início
+    VERIFICANDO_INCLINACAO,    // 1: Jogador ajusta a inclinação
+    VERIFICANDO_LDR,           // 2: Jogador cobre o sensor de luz
+    JOGO_GENIUS,               // 3: Jogador joga o Genius
+    ENTRADA_CODIGO_SECRETO,    // 4: Jogador digita a senha
+    FINALIZADO,                // 5: Puzzle resolvido
+    NUM_ESTADOS                // Helper para o tamanho dos arrays
 };
 
-// Eventos que podem ocorrer
+// --- Eventos que podem ocorrer ---
 enum Evento {
     NENHUM_EVENTO = 0,
-    BOTAO_INICIAR_PRESSIONADO, // Botão para começar o jogo
-    INCLINACAO_CORRETA,        // Acelerômetro detectou inclinação correta 
-    LDR_COBERTO,               // LDR detectou "zona escura" 
-    SEQUENCIA_GENIUS_MOSTRADA, // Evento interno após Genius mostrar a sequência
-    BOTAO_GENIUS_PRESSIONADO,  // Jogador pressionou um botão do Genius
-    SEQUENCIA_GENIUS_CORRETA,  // Jogador acertou a sequência Genius
-    SEQUENCIA_GENIUS_INCORRETA,// Jogador errou a sequência Genius
-    CODIGO_KEYPAD_RECEBIDO,    // Um dígito ou código completo foi inserido
-    CODIGO_SECRETO_CORRETO,    // Código secreto validado como correto 
-    CODIGO_SECRETO_INCORRETO,  // Código secreto validado como incorreto
-    BOTAO_RESET_PRESSIONADO,   // Botão de reset foi pressionado 
-    NUM_EVENTOS                // Helper para tamanho de arrays
+    BOTAO_INICIAR_PRESSIONADO,
+    BOTAO_RESET_PRESSIONADO,
+    INCLINACAO_CORRETA,
+    LDR_COBERTO,
+    SEQUENCIA_GENIUS_CORRETA,
+    CODIGO_SECRETO_CORRETO,
+    CODIGO_SECRETO_INCORRETO,
+    NUM_EVENTOS
 };
 
-// Ações que a máquina de estados pode executar
+// --- Ações que a máquina de estados pode executar ---
 enum Acao {
     NENHUMA_ACAO = 0,
-    ACAO_INICIALIZAR_DISPLAY_BEMVINDO, // Mostra "Puzzle Box Pronta" 
-    ACAO_PREPARAR_DESAFIO_INCLINACAO,  // Prepara e instrui sobre a inclinação
-    ACAO_FEEDBACK_INCLINACAO_OK,     // Indica sucesso na inclinação 
-    ACAO_PREPARAR_DESAFIO_LDR,         // Prepara e instrui sobre o LDR
-    ACAO_FEEDBACK_LDR_OK,            // Indica sucesso no LDR 
-    ACAO_MOSTRAR_SEQUENCIA_GENIUS,     // Genius mostra a sequência de LEDs 
-    ACAO_AGUARDAR_JOGADOR_GENIUS,      // Prepara para receber input do Genius
-    ACAO_PROCESSAR_JOGADA_GENIUS,    // Processa o botão pressionado pelo jogador
-    ACAO_FEEDBACK_GENIUS_SUCESSO,    // Indica que a sequência Genius foi correta 
-    ACAO_FEEDBACK_GENIUS_ERRO,       // Indica erro e reinicia o Genius (volta para MOSTRAR)
-    ACAO_PREPARAR_DESAFIO_CODIGO,      // Prepara para entrada do código secreto
-    ACAO_PROCESSAR_ENTRADA_CODIGO,   // Processa os dígitos do keypad
-    ACAO_ABRIR_CAIXA_SUCESSO,        // Código correto, "abre" a caixa, toca buzzer 
-    ACAO_FEEDBACK_CODIGO_INCORRETO,  // Indica que o código está errado 
-    ACAO_RESETAR_JOGO_COMPLETO       // Reseta todo o sistema para o estado IDLE 
+    A01_TELA_BEMVINDO,
+    A02_PREPARAR_INCLINACAO,
+    A03_PREPARAR_LDR,
+    A04_PREPARAR_GENIUS,
+    A05_PREPARAR_CODIGO,
+    A06_FEEDBACK_SUCESSO_ETAPA,
+    A07_FEEDBACK_ERRO_CODIGO,
+    A08_FINALIZAR_PUZZLE,
+    A09_RESETAR_JOGO
 };
 
-// --- Variáveis Globais da Máquina de Estados ---
-int estadoAtual = IDLE;
-int codigoEventoAtual = NENHUM_EVENTO;
-int eventoInterno = NENHUM_EVENTO; // Eventos gerados por ações
-int codigoAcaoAtual;
 
-// Matrizes de Transição 
-int proximoEstadoDaTransicao[NUM_ESTADOS][NUM_EVENTOS];
-int acaoDaTransicao[NUM_ESTADOS][NUM_EVENTOS];
- 
-// Variáveis Globais 
+// --- Definição dos Pinos ---
 const int PINO_BOTAO_INICIAR = 23;
-const int PINO_BOTAO_RESET = 15;
-const int PINO_BUZZER = 25;
+const int PINO_BOTAO_RESET = 16;
+const int PINO_BUZZER = 2;
+const int PINO_LDR = 34;
+byte PINOS_LINHAS[LINHAS] = {13, 12, 14, 27};
+byte PINOS_COLUNAS[COLUNAS] = {26, 25, 33, 17};
+const int LED_PINS[] = {15, 4, 5};
+const int BUTTON_PINS[] = {19, 18, 32};
 
-// ---  Instanciação dos Objetos dos Componentes ---
-DisplayOLED displayOLED; // Objeto para o display
-AccelerometerMPU6050 acelerometro; // Objeto para o MPU6050
-LDR ldrSensor; // Objeto para o LDR
+// --- Instanciação dos Objetos ---
+DisplayOLED meuDisplay;
+Buzzer meuBuzzer(PINO_BUZZER);
 Button botaoIniciar(PINO_BOTAO_INICIAR);
 Button botaoReset(PINO_BOTAO_RESET);
-LEDController ledsGenius; 
-Buzzer buzzer(PINO_BUZZER);
-KeypadMatrix keypad;
+AccelerometerMPU6050 meuIMU;
+KeypadMatrix meuTeclado(PINOS_LINHAS, PINOS_COLUNAS);
+LightSensorLDR meuLDR(PINO_LDR, LightSensorLDR::LdrCalculation::MANUFACTURER_EXAMPLE);
+GeniusGame meuJogoGenius(LED_PINS, BUTTON_PINS, meuDisplay, meuBuzzer);
 
-Genius jogoGenius; 
+// Variáveis de controle
+String entradaTeclado = "";
+const char* CODIGO_SECRETO = "1234";
 
-// Variável para armazenar o código secreto
-const char* CODIGO_PREDEFINIDO = "1234"; // Mudar depois
+/***********************************************************************
+ Estáticos da Máquina de Estados
+ ***********************************************************************/
+int estadoAtual = AGUARDANDO;
+int codigoEvento = NENHUM_EVENTO;
+int eventoInterno = NENHUM_EVENTO;
+int codigoAcao;
+int acao_matrizTransicaoEstados[NUM_ESTADOS][NUM_EVENTOS];
+int proximo_estado_matrizTransicaoEstados[NUM_ESTADOS][NUM_EVENTOS];
 
-// --- Função setup() ---
-void setup() {
-    Serial.begin(115200); // Taxa de comunicação comum para ESP32
-    Serial.println("Iniciando Puzzle Box...");
+/************************************************************************
+ executarAcao
+ *************************************************************************/
+int executarAcao(int acao) {
+    if (acao == NENHUMA_ACAO) return NENHUM_EVENTO;
 
-    // Inicializar todos os componentes
-    displayOLED.inicializar(); 
-    acelerometro.inicializar();
-    ldrSensor.inicializar();
-    botaoIniciar.inicializar();
-    botaoReset.inicializar();
-    ledsGenius.inicializar(); 
-    buzzer.inicializar();
-    keypad.inicializar();
-    jogoGenius.inicializar(&ledsGenius /*, &botoesGenius*/); // Passar referências se necessário
-
-    // Inicializar a máquina de estados
-    iniciaMaquinaEstados();
-
-    // Estado inicial e ação inicial
-    estadoAtual = IDLE;
-    eventoInterno = NENHUM_EVENTO; // Garante que não haja evento interno pendente
-    executarAcao(ACAO_INICIALIZAR_DISPLAY_BEMVINDO); // Mostra "Puzzle Box Pronta"
-
-    Serial.println("Puzzle Box Pronta.");
-    displayOLED.exibirMensagem("Puzzle Box", "Pronta!"); 
-}
-
-void loop() {
-    if (eventoInterno == NENHUM_EVENTO) {
-        codigoEventoAtual = obterEvento(); // Verifica eventos externos
-    } else {
-        codigoEventoAtual = eventoInterno; // Processa evento interno primeiro
-        eventoInterno = NENHUM_EVENTO;     // Limpa o evento interno
-    }
-
-    if (codigoEventoAtual != NENHUM_EVENTO) {
-        codigoAcaoAtual = obterAcaoDaTabela(estadoAtual, codigoEventoAtual);
-        estadoAtual = obterProximoEstadoDaTabela(estadoAtual, codigoEventoAtual);
-
-        // Log para debug
-        Serial.print("Estado: "); Serial.print(estadoAtual);
-        Serial.print(" Evento: "); Serial.print(codigoEventoAtual);
-        Serial.print(" Acao: "); Serial.println(codigoAcaoAtual);
-
-        eventoInterno = executarAcao(codigoAcaoAtual); // Executa a ação e pode gerar novo evento interno
-    }
-    delay(10); // Pequeno delay para estabilidade, ajuste conforme necessário
-}
-
-// --- Função iniciaMaquinaEstados() ---
-void iniciaMaquinaEstados() {
-    // Inicializa as matrizes com valores padrão (permanecer no mesmo estado, nenhuma ação)
-    for (int i = 0; i < NUM_ESTADOS; i++) {
-        for (int j = 0; j < NUM_EVENTOS; j++) {
-            proximoEstadoDaTransicao[i][j] = i; // Padrão: permanece no estado
-            acaoDaTransicao[i][j] = NENHUMA_ACAO;    // Padrão: nenhuma ação
-        }
-    }
-
-    // Agora, defina as transições e ações específicas baseadas no seu diagrama de estados
-    // Exemplo para o estado IDLE:
-    proximoEstadoDaTransicao[IDLE][BOTAO_INICIAR_PRESSIONADO] = VERIFICANDO_INCLINACAO;
-    acaoDaTransicao[IDLE][BOTAO_INICIAR_PRESSIONADO] = ACAO_PREPARAR_DESAFIO_INCLINACAO;
-
-    // Exemplo para o estado VERIFICANDO_INCLINACAO:
-    proximoEstadoDaTransicao[VERIFICANDO_INCLINACAO][INCLINACAO_CORRETA] = VERIFICANDO_LDR;
-    acaoDaTransicao[VERIFICANDO_INCLINACAO][INCLINACAO_CORRETA] = ACAO_FEEDBACK_INCLINACAO_OK; // E ACAO_PREPARAR_DESAFIO_LDR (pode ser uma ação combinada ou duas separadas)
-
-    proximoEstadoDaTransicao[VERIFICANDO_INCLINACAO][BOTAO_RESET_PRESSIONADO] = IDLE;
-    acaoDaTransicao[VERIFICANDO_INCLINACAO][BOTAO_RESET_PRESSIONADO] = ACAO_RESETAR_JOGO_COMPLETO;
-
-    // Exemplo para o estado VERIFICANDO_LDR:
-    proximoEstadoDaTransicao[VERIFICANDO_LDR][LDR_COBERTO] = JOGO_GENIUS_MOSTRAR;
-    acaoDaTransicao[VERIFICANDO_LDR][LDR_COBERTO] = ACAO_FEEDBACK_LDR_OK; // E ACAO_MOSTRAR_SEQUENCIA_GENIUS
-
-    proximoEstadoDaTransicao[VERIFICANDO_LDR][BOTAO_RESET_PRESSIONADO] = IDLE;
-    acaoDaTransicao[VERIFICANDO_LDR][BOTAO_RESET_PRESSIONADO] = ACAO_RESETAR_JOGO_COMPLETO;
-
-    // Exemplo para JOGO_GENIUS_MOSTRAR:
-    // Este estado pode transitar automaticamente para JOGO_GENIUS_JOGADOR após mostrar a sequência
-    // Isso pode ser feito com um evento interno gerado pela ACAO_MOSTRAR_SEQUENCIA_GENIUS
-    proximoEstadoDaTransicao[JOGO_GENIUS_MOSTRAR][SEQUENCIA_GENIUS_MOSTRADA] = JOGO_GENIUS_JOGADOR;
-    acaoDaTransicao[JOGO_GENIUS_MOSTRAR][SEQUENCIA_GENIUS_MOSTRADA] = ACAO_AGUARDAR_JOGADOR_GENIUS;
-
-    // Exemplo para JOGO_GENIUS_JOGADOR:
-    proximoEstadoDaTransicao[JOGO_GENIUS_JOGADOR][SEQUENCIA_GENIUS_CORRETA] = ENTRADA_CODIGO_SECRETO;
-    acaoDaTransicao[JOGO_GENIUS_JOGADOR][SEQUENCIA_GENIUS_CORRETA] = ACAO_FEEDBACK_GENIUS_SUCESSO; // E ACAO_PREPARAR_DESAFIO_CODIGO
-
-    proximoEstadoDaTransicao[JOGO_GENIUS_JOGADOR][SEQUENCIA_GENIUS_INCORRETA] = JOGO_GENIUS_MOSTRAR; // Volta a mostrar a sequência 
-    acaoDaTransicao[JOGO_GENIUS_JOGADOR][SEQUENCIA_GENIUS_INCORRETA] = ACAO_FEEDBACK_GENIUS_ERRO; // E ACAO_MOSTRAR_SEQUENCIA_GENIUS
-
-    proximoEstadoDaTransicao[JOGO_GENIUS_JOGADOR][BOTAO_RESET_PRESSIONADO] = IDLE;
-    acaoDaTransicao[JOGO_GENIUS_JOGADOR][BOTAO_RESET_PRESSIONADO] = ACAO_RESETAR_JOGO_COMPLETO;
-
-    // Exemplo para ENTRADA_CODIGO_SECRETO:
-    proximoEstadoDaTransicao[ENTRADA_CODIGO_SECRETO][CODIGO_SECRETO_CORRETO] = FINALIZADO;
-    acaoDaTransicao[ENTRADA_CODIGO_SECRETO][CODIGO_SECRETO_CORRETO] = ACAO_ABRIR_CAIXA_SUCESSO;
-
-    proximoEstadoDaTransicao[ENTRADA_CODIGO_SECRETO][CODIGO_SECRETO_INCORRETO] = ENTRADA_CODIGO_SECRETO; // Permanece para nova tentativa 
-    acaoDaTransicao[ENTRADA_CODIGO_SECRETO][CODIGO_SECRETO_INCORRETO] = ACAO_FEEDBACK_CODIGO_INCORRETO;
-
-    proximoEstadoDaTransicao[ENTRADA_CODIGO_SECRETO][BOTAO_RESET_PRESSIONADO] = IDLE;
-    acaoDaTransicao[ENTRADA_CODIGO_SECRETO][BOTAO_RESET_PRESSIONADO] = ACAO_RESETAR_JOGO_COMPLETO;
-
-    // Exemplo para FINALIZADO:
-    proximoEstadoDaTransicao[FINALIZADO][BOTAO_RESET_PRESSIONADO] = IDLE;
-    acaoDaTransicao[FINALIZADO][BOTAO_RESET_PRESSIONADO] = ACAO_RESETAR_JOGO_COMPLETO;
-
-    // IMPORTANTE: Adicionar transições de BOTAO_RESET_PRESSIONADO para todos os estados relevantes,
-    // levando de volta para IDLE e executando ACAO_RESETAR_JOGO_COMPLETO.
-    // O exemplo acima já mostra para alguns estados.
-}
-
-
-// --- Função obterEvento() ---
-int obterEvento() {
-    // Verificar botão de reset primeiro, pois ele tem prioridade e pode ocorrer em qualquer estado.
-    if (botaoReset.foiPressionado()) { 
-        return BOTAO_RESET_PRESSIONADO;
-    }
-
-    // Lógica de detecção de eventos baseada no estado atual
-    switch (estadoAtual) {
-        case IDLE:
-            if (botaoIniciar.foiPressionado()) {
-                return BOTAO_INICIAR_PRESSIONADO;
-            }
+    switch (acao) {
+        case A01_TELA_BEMVINDO:
+            meuDisplay.exibirMensagem("Puzzle Box", "Pressione Iniciar", 2);
             break;
-        case VERIFICANDO_INCLINACAO:
-            // Supondo que acelerometro.verificarInclinacaoAlcancada() retorna true se ok 
-            if (acelerometro.verificarInclinacaoAlcancada()) {
-                return INCLINACAO_CORRETA;
-            }
+        case A02_PREPARAR_INCLINACAO:
+            meuBuzzer.tocarBeepSucesso();
+            meuDisplay.exibirMensagem("Nivel 1", "Incline a Caixa", 2);
+            meuIMU.definirInclinacaoAlvo(0.0, 20.0, 5.0);
             break;
-        case VERIFICANDO_LDR:
-            // Supondo que ldrSensor.zonaEscuraDetectada() retorna true se ok 
-            if (ldrSensor.zonaEscuraDetectada()) {
-                return LDR_COBERTO;
-            }
+        case A03_PREPARAR_LDR:
+            executarAcao(A06_FEEDBACK_SUCESSO_ETAPA);
+            meuDisplay.exibirMensagem("Nivel 2", "Cubra o Sensor", 2);
+            meuLDR.definirFaixaDeLuzAlvo(0, 100.0);
             break;
-        case JOGO_GENIUS_MOSTRAR:
-            // Normalmente, a ACAO_MOSTRAR_SEQUENCIA_GENIUS geraria um evento interno
-            // SEQUENCIA_GENIUS_MOSTRADA quando terminasse.
-            // Se não, você pode precisar de um timer aqui ou uma flag na classe Genius.
+        case A04_PREPARAR_GENIUS:
+            executarAcao(A06_FEEDBACK_SUCESSO_ETAPA);
+            meuJogoGenius.iniciarNovoJogo();
             break;
-        case JOGO_GENIUS_JOGADOR:
-            // Aqui você chamaria um método da sua classe Genius para verificar
-            // qual botão foi pressionado e se a jogada está correta, incorreta ou em andamento.
-            // Ex: int resultadoJogada = jogoGenius.obterResultadoJogada();
-            // if (resultadoJogada == Genius::JOGADA_CORRETA_PARCIAL) return BOTAO_GENIUS_PRESSIONADO; (se precisar de feedback por botão)
-            // if (resultadoJogada == Genius::SEQUENCIA_COMPLETA_CORRETA) return SEQUENCIA_GENIUS_CORRETA;
-            // if (resultadoJogada == Genius::SEQUENCIA_COMPLETA_INCORRETA) return SEQUENCIA_GENIUS_INCORRETA;
+        case A05_PREPARAR_CODIGO:
+            executarAcao(A06_FEEDBACK_SUCESSO_ETAPA);
+            entradaTeclado = "";
+            meuDisplay.exibirMensagem("Senha Final:", "", 2);
             break;
-        case ENTRADA_CODIGO_SECRETO:
-            // String codigoDigitado = keypad.obterCodigoCompleto(); // Ou processar dígito a dígito
-            // if (codigoDigitado.length() > 0) { // Se um código foi finalizado (ex: com '*' ou após N dígitos)
-            //    if (codigoDigitado.equals(CODIGO_PREDEFINIDO)) {
-            //        return CODIGO_SECRETO_CORRETO;
-            //    } else {
-            //        return CODIGO_SECRETO_INCORRETO;
-            //    }
-            // }
-            char tecla = keypad.obterTeclaPressionada(); //  (Exemplo)
-            if (tecla != NO_KEY) { // NO_KEY é uma constante comum da lib Keypad.h
-                // Aqui você acumularia as teclas e verificaria contra CODIGO_PREDEFINIDO
-                // Para simplificar, vamos assumir que a classe keypad pode dizer se o código está completo e correto.
-                // Este é um ponto que precisará de mais lógica na classe Keypad ou aqui.
-                // Ex: if (keypad.codigoPronto()) {
-                //          if (keypad.validarCodigo(CODIGO_PREDEFINIDO)) return CODIGO_SECRETO_CORRETO;
-                //          else return CODIGO_SECRETO_INCORRETO;
-                //      }
-            }
+        case A06_FEEDBACK_SUCESSO_ETAPA:
+            meuBuzzer.tocarBeepSucesso();
+            meuDisplay.exibirMensagem("CORRETO!", "", 3);
+            delay(1500);
             break;
-        case FINALIZADO:
-            // Geralmente nenhum evento novo, apenas aguarda reset.
+        case A07_FEEDBACK_ERRO_CODIGO:
+            meuBuzzer.tocarSomErro();
+            meuDisplay.exibirMensagem("ERRO!", "Tente de novo", 2);
+            delay(1500);
+            entradaTeclado = "";
+            meuDisplay.exibirMensagem("Senha Final:", "", 2);
+            break;
+        case A08_FINALIZAR_PUZZLE:
+            executarAcao(A06_FEEDBACK_SUCESSO_ETAPA);
+            meuBuzzer.tocarSomVitoria();
+            meuDisplay.exibirMensagem("PUZZLE", "RESOLVIDO!", 3);
+            break;
+        case A09_RESETAR_JOGO:
+            meuBuzzer.tocarBeepTecla();
+            executarAcao(A01_TELA_BEMVINDO);
             break;
     }
     return NENHUM_EVENTO;
 }
 
-// --- Função executarAcao() ---
-int executarAcao(int acao) {
-    int eventoGeradoInternamente = NENHUM_EVENTO;
-
-    if (acao == NENHUMA_ACAO) {
-        return eventoGeradoInternamente;
+/************************************************************************
+ iniciaMaquinaEstados
+ *************************************************************************/
+void iniciaMaquinaEstados() {
+    for (int i = 0; i < NUM_ESTADOS; i++) {
+        for (int j = 0; j < NUM_EVENTOS; j++) {
+            proximo_estado_matrizTransicaoEstados[i][j] = i;
+            acao_matrizTransicaoEstados[i][j] = NENHUMA_ACAO;
+        }
     }
 
-    switch (acao) {
-        case ACAO_INICIALIZAR_DISPLAY_BEMVINDO:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Puzzle Box", "Pronta!", 0, 0); //  (Exemplo)
-            // Pode também verificar sensores aqui e exibir "ERRO" se algo falhar 
-            break;
-        case ACAO_PREPARAR_DESAFIO_INCLINACAO:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Nivel 1:", "Incline a Caixa", 0, 0);
-            // acelerometro.iniciarMonitoramento(); // Se necessário
-            break;
-        case ACAO_FEEDBACK_INCLINACAO_OK:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Nivel 1:", "OK!", 0, 0); // 
-            // buzzer.tocarSucessoCurto(); // Feedback sonoro opcional
-            // eventoGeradoInternamente = ACAO_PREPARAR_DESAFIO_LDR; // Exemplo de encadear para proxima ação automaticamente
-            break;
-        case ACAO_PREPARAR_DESAFIO_LDR:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Nivel 2:", "Cubra o Sensor", 0, 0);
-            // ldrSensor.iniciarMonitoramento(); // Se necessário
-            break;
-        case ACAO_FEEDBACK_LDR_OK:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Nivel 2:", "OK!", 0, 0); // 
-            // buzzer.tocarSucessoCurto();
-            break;
-        case ACAO_MOSTRAR_SEQUENCIA_GENIUS:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Nivel 3:", "Observe...", 0, 0);
-            // jogoGenius.iniciarNovaSequenciaEMostrar(); //  Este método deve ser bloqueante ou usar callbacks/flags para indicar fim
-            // Após mostrar, poderia gerar um evento interno para mudar de estado ou ação
-            eventoGeradoInternamente = SEQUENCIA_GENIUS_MOSTRADA; // Transita para JOGO_GENIUS_JOGADOR
-            break;
-        case ACAO_AGUARDAR_JOGADOR_GENIUS:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Nivel 3:", "Sua Vez!", 0, 0);
-            // jogoGenius.prepararParaEntradaJogador();
-            break;
-        case ACAO_PROCESSAR_JOGADA_GENIUS:
-            // A lógica de processamento da jogada Genius provavelmente estará em obterEvento()
-            // ou dentro da classe Genius. Esta ação pode ser para dar feedback intermediário
-            // ou verificar se o jogo terminou.
-            // Ex: if (jogoGenius.jogadorAcertouUltimaJogada()) displayOLED.piscarFeedbackPositivo();
-            //     else displayOLED.piscarFeedbackNegativo();
-            break;
-        case ACAO_FEEDBACK_GENIUS_SUCESSO:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Nivel 3:", "OK!", 0, 0); // 
-            // buzzer.tocarSucessoCurto();
-            break;
-        case ACAO_FEEDBACK_GENIUS_ERRO:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Nivel 3:", "Erro! Tente Novamente.", 0, 0);
-            // buzzer.tocarErro();
-            // A transição para JOGO_GENIUS_MOSTRAR já cuida de reiniciar.
-            break;
-        case ACAO_PREPARAR_DESAFIO_CODIGO:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Nivel Final:", "Digite o Codigo", 0, 0);
-            // keypad.limparBuffer(); // Prepara para nova entrada
-            break;
-        case ACAO_PROCESSAR_ENTRADA_CODIGO:
-            // Semelhante ao Genius, a maior parte da lógica pode estar em obterEvento()
-            // Esta ação pode ser usada para feedback por dígito, se desejado.
-            // displayOLED.adicionarDigitoAoDisplay(keypad.ultimoDigito());
-            break;
-        case ACAO_ABRIR_CAIXA_SUCESSO:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("PARABENS!", "CAIXA ABERTA!", 0, 0);
-            buzzer.tocarSomVitoria(); // Som longo e LEDs piscando 
-            // ledsGenius.piscarTodosPorUmTempo(); // Exemplo
-            break;
-        case ACAO_FEEDBACK_CODIGO_INCORRETO:
-            displayOLED.exibirMensagem("Codigo:", "Incorreto!", 0, 2); // Exibe na linha 2 
-            // buzzer.tocarErro();
-            // keypad.limparBuffer(); // Para o jogador tentar novamente
-            break;
-        case ACAO_RESETAR_JOGO_COMPLETO:
-            displayOLED.limpar();
-            displayOLED.exibirMensagem("Sistema Resetado", "", 0, 0); // 
-            // jogoGenius.resetar(); // Reseta estado interno do jogo Genius
-            // acelerometro.resetar(); // Se houver algum estado interno
-            // ldrSensor.resetar();    // Se houver algum estado interno
-            // keypad.limparBuffer();
-            delay(1000); // Mostra mensagem de reset por um tempo
-            // A transição para IDLE e a ACAO_INICIALIZAR_DISPLAY_BEMVINDO (na próxima iteração do IDLE)
-            // finalizarão o reset visual.
-            // A primeira ação do estado IDLE (se BOTAO_INICIAR_PRESSIONADO) já reconfiguraria o display.
-            // Poderia também chamar ACAO_INICIALIZAR_DISPLAY_BEMVINDO diretamente aqui se desejado.
-            executarAcao(ACAO_INICIALIZAR_DISPLAY_BEMVINDO); // Para garantir que o display mostre "Pronta"
-            break;
+    // Mapeamento do Fluxo do Jogo
+    proximo_estado_matrizTransicaoEstados[AGUARDANDO][BOTAO_INICIAR_PRESSIONADO] = VERIFICANDO_INCLINACAO;
+    acao_matrizTransicaoEstados[AGUARDANDO][BOTAO_INICIAR_PRESSIONADO] = A02_PREPARAR_INCLINACAO;
+
+    proximo_estado_matrizTransicaoEstados[VERIFICANDO_INCLINACAO][INCLINACAO_CORRETA] = VERIFICANDO_LDR;
+    acao_matrizTransicaoEstados[VERIFICANDO_INCLINACAO][INCLINACAO_CORRETA] = A03_PREPARAR_LDR;
+
+    proximo_estado_matrizTransicaoEstados[VERIFICANDO_LDR][LDR_COBERTO] = JOGO_GENIUS;
+    acao_matrizTransicaoEstados[VERIFICANDO_LDR][LDR_COBERTO] = A04_PREPARAR_GENIUS;
+
+    proximo_estado_matrizTransicaoEstados[JOGO_GENIUS][SEQUENCIA_GENIUS_CORRETA] = ENTRADA_CODIGO_SECRETO;
+    acao_matrizTransicaoEstados[JOGO_GENIUS][SEQUENCIA_GENIUS_CORRETA] = A05_PREPARAR_CODIGO;
+
+    proximo_estado_matrizTransicaoEstados[ENTRADA_CODIGO_SECRETO][CODIGO_SECRETO_CORRETO] = FINALIZADO;
+    acao_matrizTransicaoEstados[ENTRADA_CODIGO_SECRETO][CODIGO_SECRETO_CORRETO] = A08_FINALIZAR_PUZZLE;
+
+    proximo_estado_matrizTransicaoEstados[ENTRADA_CODIGO_SECRETO][CODIGO_SECRETO_INCORRETO] = ENTRADA_CODIGO_SECRETO;
+    acao_matrizTransicaoEstados[ENTRADA_CODIGO_SECRETO][CODIGO_SECRETO_INCORRETO] = A07_FEEDBACK_ERRO_CODIGO;
+
+    for(int i=0; i < NUM_ESTADOS; i++) {
+        proximo_estado_matrizTransicaoEstados[i][BOTAO_RESET_PRESSIONADO] = AGUARDANDO;
+        acao_matrizTransicaoEstados[i][BOTAO_RESET_PRESSIONADO] = A09_RESETAR_JOGO;
     }
-    return eventoGeradoInternamente;
 }
 
-// --- Funções Helper para a Tabela de Transição ---
-int obterAcaoDaTabela(int estadoConsultar, int eventoConsultar) {
-    if (estadoConsultar >= 0 && estadoConsultar < NUM_ESTADOS &&
-        eventoConsultar >= 0 && eventoConsultar < NUM_EVENTOS) {
-        return acaoDaTransicao[estadoConsultar][eventoConsultar];
+/************************************************************************
+ obterEvento
+ *************************************************************************/
+int obterEvento() {
+    if (botaoReset.foiPressionado()) return BOTAO_RESET_PRESSIONADO;
+
+    switch (estadoAtual) {
+        case AGUARDANDO:
+            if (botaoIniciar.foiPressionado()) return BOTAO_INICIAR_PRESSIONADO;
+            break;
+        case VERIFICANDO_INCLINACAO:
+            if (meuIMU.verificarInclinacaoCorreta()) return INCLINACAO_CORRETA;
+            break;
+        case VERIFICANDO_LDR:
+            if (meuLDR.verificarLuzCorreta()) return LDR_COBERTO;
+            break;
+        case JOGO_GENIUS:
+            if (meuJogoGenius.isJogoFinalizado()) return SEQUENCIA_GENIUS_CORRETA;
+            break;
+        case ENTRADA_CODIGO_SECRETO: {
+            char tecla = meuTeclado.obterTeclaPressionada();
+            if (tecla != NO_KEY) {
+                meuBuzzer.tocarBeepTecla();
+                entradaTeclado += tecla;
+                meuDisplay.exibirMensagem("Codigo:", entradaTeclado, 3);
+
+                if (entradaTeclado.length() >= 4) {
+                    return (entradaTeclado == CODIGO_SECRETO) ? CODIGO_SECRETO_CORRETO : CODIGO_SECRETO_INCORRETO;
+                }
+            }
+            break;
+        }
     }
-    return NENHUMA_ACAO; // Segurança
+    return NENHUM_EVENTO;
 }
 
-int obterProximoEstadoDaTabela(int estadoConsultar, int eventoConsultar) {
-    if (estadoConsultar >= 0 && estadoConsultar < NUM_ESTADOS &&
-        eventoConsultar >= 0 && eventoConsultar < NUM_EVENTOS) {
-        return proximoEstadoDaTransicao[estadoConsultar][eventoConsultar];
-    }
-    return estadoConsultar; // Segurança: permanece no estado atual
+/************************************************************************
+ obterAcao e obterProximoEstado (Helpers)
+ *************************************************************************/
+int obterAcao(int estado, int evento) {
+    return acao_matrizTransicaoEstados[estado][evento];
 }
 
+int obterProximoEstado(int estado, int evento) {
+    return proximo_estado_matrizTransicaoEstados[estado][evento];
+}
+
+/************************************************************************
+ Main (setup e loop)
+ *************************************************************************/
+void setup() {
+    Serial.begin(115200);
+    Serial.println("--- Puzzle Box ---");
+
+    meuDisplay.inicializar();
+    meuIMU.inicializar();
+    meuBuzzer.inicializar();
+    botaoIniciar.inicializar();
+    botaoReset.inicializar();
+    meuLDR.inicializar();
+    meuJogoGenius.inicializar();
+
+    iniciaMaquinaEstados();
+    executarAcao(A01_TELA_BEMVINDO);
+}
+
+void loop() {
+  
+    if (estadoAtual == VERIFICANDO_INCLINACAO) {
+      meuIMU.atualizar(); // Atualiza o filtro AHRS
+      meuIMU.imprimirLeituras(); // Imprime no Serial para debug
+      meuDisplay.exibirDadosIMU(meuIMU.getRoll(), meuIMU.getPitch()); // Usa o novo método do display
+
+    }
+    if (estadoAtual == JOGO_GENIUS) {
+        meuJogoGenius.loop();
+    }
+
+    if (eventoInterno == NENHUM_EVENTO) {
+        codigoEvento = obterEvento();
+    } else {
+        codigoEvento = eventoInterno;
+        eventoInterno = NENHUM_EVENTO;
+    }
+
+    if (codigoEvento != NENHUM_EVENTO) {
+        codigoAcao = obterAcao(estadoAtual, codigoEvento);
+        estadoAtual = obterProximoEstado(estadoAtual, codigoEvento);
+        eventoInterno = executarAcao(codigoAcao);
+    }
+}

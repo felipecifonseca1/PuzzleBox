@@ -44,7 +44,6 @@ void GeniusGame::iniciarNovoJogo() {
 int GeniusGame::_lerBotoes() {
     for (int i = 0; i < GENIUS_SEQUENCE_LENGTH; i++) {
         if (digitalRead(_buttonPins[i]) == LOW) {
-            // <<< ALTERADO 1: Aumentado o tempo de debounce de 50ms para 80ms >>>
             delay(500); 
             while(digitalRead(_buttonPins[i]) == LOW); 
             return i;
