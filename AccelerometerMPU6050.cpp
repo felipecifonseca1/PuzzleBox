@@ -1,5 +1,6 @@
+// AccelerometerMPU6050.cpp
+
 #include "AccelerometerMPU6050.h"
-#include "Arduino.h"
 
 // Construtor
 AccelerometerMPU6050::AccelerometerMPU6050() : _filter() {
@@ -28,9 +29,9 @@ void AccelerometerMPU6050::atualizar() {
     sensors_event_t a, g, temp;
     _mpu.getEvent(&a, &g, &temp);
 
-    _filter.update(g.gyro.x, g.gyro.y, g.gyro.z, 
+   _filter.update(g.gyro.x, g.gyro.y, g.gyro.z, 
                a.acceleration.x, a.acceleration.y, a.acceleration.z, 
-               0, 0, 0); // Como nao tem mag valores sao 0
+               0, 0, 0);
 
     _roll = _filter.getRoll();
     _pitch = _filter.getPitch();
@@ -58,4 +59,12 @@ void AccelerometerMPU6050::imprimirLeituras() {
     Serial.print(", Pitch: ");
     Serial.print(_pitch, 2);
     Serial.println();
+}
+
+float AccelerometerMPU6050::getRoll() {
+    return _roll;
+}
+
+float AccelerometerMPU6050::getPitch() {
+    return _pitch;
 }

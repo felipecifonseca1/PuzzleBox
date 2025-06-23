@@ -4,7 +4,7 @@
 #include "Button.h"            // Para os botões (iniciar, reset, genius)
 #include "LEDController.h"     // Para controlar os LEDs (especialmente do Genius)
 #include "Buzzer.h"            // Para o buzzer
-#include "Keypad.h"            // Para o teclado
+#include "KeypadMatrix.h"            // Para o teclado
 #include "Genius.h"            // Para a lógica do jogo Genius 
 
 // --- Definições do Sistema  ---
@@ -81,7 +81,7 @@ Button botaoIniciar(PINO_BOTAO_INICIAR);
 Button botaoReset(PINO_BOTAO_RESET);
 LEDController ledsGenius; 
 Buzzer buzzer(PINO_BUZZER);
-Keypad keypad;
+KeypadMatrix keypad;
 
 Genius jogoGenius; 
 
@@ -389,6 +389,4 @@ int obterProximoEstadoDaTabela(int estadoConsultar, int eventoConsultar) {
     }
     return estadoConsultar; // Segurança: permanece no estado atual
 }
-
-
 
