@@ -86,3 +86,30 @@ void DisplayOLED::exibirDadosIMU(float roll, float pitch) {
     _display.print(pitch, 1);
     _display.display();
 }
+
+void DisplayOLED::exibirTelaDeDesafio(const String& titulo, const String& instrucao, const String& senha) {
+    _display.clearDisplay();
+    _display.setTextColor(SSD1306_WHITE);
+
+    // Exibe o título no topo
+    _display.setTextSize(1);
+    _display.setCursor(0, 0);
+    _display.println(titulo);
+    _display.drawFastHLine(0, 10, LARGURA_TELA, SSD1306_WHITE); // Linha divisória
+
+    // Exibe a instrução principal no meio
+    _display.setTextSize(2);
+    int16_t x1, y1;
+    uint16_t w, h;
+    _display.getTextBounds(instrucao, 0, 0, &x1, &y1, &w, &h);
+    _display.setCursor((LARGURA_TELA - w) / 2, 22);
+    _display.println(instrucao);
+
+    // Exibe a senha revelada na parte inferior
+    _display.setTextSize(1);
+    _display.setCursor(0, 54);
+    _display.print("Senha: ");
+    _display.print(senha);
+
+    _display.display();
+}

@@ -16,7 +16,7 @@ float LightSensorLDR::lerNivelDeLuz() {
     long totalAnalogValue = 0;
     for (int i = 0; i < NUM_LEITURAS; i++) {
         totalAnalogValue += analogRead(_pin);
-        vTaskDelay(pdMS_TO_TICKS(2));
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
     // Média de leituras de 12 bits 
     int analogValue12bit = totalAnalogValue / NUM_LEITURAS;

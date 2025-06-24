@@ -38,7 +38,7 @@ void GeniusGame::iniciarNovoJogo() {
     _estadoAtual = MOSTRANDO_LED; 
     _ultimoTempo = millis();
     _display.exibirMensagem("Genius:", "Observe...", 2);
-    delay(500); 
+    vTaskDelay(pdMS_TO_TICKS(500)); 
 }
 
 int GeniusGame::_lerBotoes() {

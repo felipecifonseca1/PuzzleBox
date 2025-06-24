@@ -20,6 +20,7 @@ public:
     // Exibe até duas linhas de texto centralizadas na tela
     void exibirMensagem(const String& linha1, const String& linha2 = "", uint8_t tamanhoTexto = 2);
     void animacaoCarregando(int duracao_ms);
+    void exibirTelaDeDesafio(const String& titulo, const String& instrucao, const String& senha);
 
     void exibirDadosIMU(float roll, float pitch);
 
