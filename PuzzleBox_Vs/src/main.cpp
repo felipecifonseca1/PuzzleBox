@@ -70,8 +70,13 @@ String senhaRevelada = "------";
 const char* CODIGO_SECRETO = "205733";
 
 // --- Credenciais do Wi-Fi  ---
-const char* ssid = "iPhone de Luisa";
-const char* password = "123456789";
+// const char* ssid = "iPhone de Luisa";
+// const char* password = "123456789";
+
+// Wi-Fi do Wokwi
+const char* ssid = "Wokwi-GUEST"; 
+const char* password = "";
+
 
 WebServer server(80);
 
