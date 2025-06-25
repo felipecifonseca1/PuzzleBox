@@ -9,6 +9,11 @@
 #define NOTE_E4  330
 #define NOTE_G4  392
 #define NOTE_A4  440
+#define NOTE_C5  523
+#define NOTE_GS4 415 
+#define NOTE_AS4 466 
+#define NOTE_CS5 554 
+#define NOTE_DS5 622 
 
 class Buzzer {
 public:

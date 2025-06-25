@@ -1,8 +1,8 @@
 #include "GeniusGame.h"
 
 // Constantes para controlar o tempo do pisca-pisca 
-const int LED_ON_DURATION = 600; 
-const int LED_OFF_DURATION = 200; 
+const int LED_ON_DURATION = 1000; 
+const int LED_OFF_DURATION = 500; 
 
 GeniusGame::GeniusGame(const int ledPins[GENIUS_SEQUENCE_LENGTH], const int buttonPins[GENIUS_SEQUENCE_LENGTH], DisplayOLED& display, Buzzer& buzzer)
     : _display(display), _buzzer(buzzer) {

@@ -11,6 +11,9 @@
 #include "LightSensorLDR.h"
 #include "GeniusGame.h"
 #include "NonBlockingTimer.h"
+#include <WiFi.h>
+#include <WebServer.h>
+
 
 /***********************************************************************
  Definições do Sistema
@@ -66,6 +69,12 @@ String entradaTeclado = "";
 String senhaRevelada = "------";
 const char* CODIGO_SECRETO = "205733";
 
+// --- Credenciais do Wi-Fi  ---
+const char* ssid = "iPhone de Luisa";
+const char* password = "123456789";
+
+WebServer server(80);
+
 /***********************************************************************
  Estáticos e FreeRTOS
  ***********************************************************************/
@@ -93,24 +102,22 @@ int executarAcao(int acao) {
             meuBuzzer.tocarBeepSucesso();
             meuDisplay.exibirTelaDeDesafio("Nivel 1: Inclinacao", "Acerte o Angulo", senhaRevelada);
             timerPausa.start(3000); 
-            meuIMU.definirInclinacaoAlvo(0.0, 20.0, 0.2);
+            meuIMU.definirInclinacaoAlvo(0.0, 90.0, 5);
             break;
         case A03_PREPARAR_LDR:
             senhaRevelada[0] = CODIGO_SECRETO[0];
             senhaRevelada[1] = CODIGO_SECRETO[1];
             meuDisplay.exibirTelaDeDesafio("Nivel 2: Luminosidade", "Cubra o Sensor", senhaRevelada);
             timerPausa.start(3000); 
-            meuLDR.definirFaixaDeLuzAlvo(55.0, 57.0);
+            meuLDR.definirFaixaDeLuzAlvo(60.0, 100.0);
             break;
         case A04_PREPARAR_GENIUS:
-            senhaRevelada = "------";
             senhaRevelada[2] = CODIGO_SECRETO[2];
             senhaRevelada[3] = CODIGO_SECRETO[3];
             meuDisplay.exibirTelaDeDesafio("Nivel 3: Genius", "Observe...", senhaRevelada);
             timerPausa.start(3000); 
             break;
         case A05_PREPARAR_CODIGO:
-            senhaRevelada = "------";
             senhaRevelada[4] = CODIGO_SECRETO[4];
             senhaRevelada[5] = CODIGO_SECRETO[5];
             entradaTeclado = "";
@@ -197,6 +204,48 @@ void iniciaMaquinaEstados() {
 int obterAcao(int estado, int evento) { return acao_matrizTransicaoEstados[estado][evento]; }
 int obterProximoEstado(int estado, int evento) { return proximo_estado_matrizTransicaoEstados[estado][evento]; }
 
+String gerarPaginaHTML() {
+  String html = "<!DOCTYPE html><html><head><title>Puzzle Box Status</title>";
+  html += "<meta http-equiv='refresh' content='5'>"; // Atualiza a página a cada 5 segundos
+  html += "<style>body { font-family: sans-serif; background-color: #282c34; color: #abb2bf; text-align: center; }";
+  html += "h1 { color: #61afef; } .hint { background-color: #3e4451; padding: 15px; border-radius: 8px; margin-top: 20px; }</style>";
+  html += "</head><body>";
+  html += "<h1>Status da Puzzle Box</h1>";
+  html += "<h2>Senha Parcial: " + senhaRevelada + "</h2>";
+
+  html += "<div class='hint'>";
+  // Gera uma dica baseada no estado atual
+  switch (estadoAtual) {
+    case INICIO:
+      html += "Pressione o botao branco na caixa para comecar e o botao preto para reiniciar o jogo.";
+      break;
+    case VERIFICANDO_INCLINACAO:
+      html += "Dica: A caixa parece ter uma posicao de equilibrio... Tente deixa-la na vertical.";
+      break;
+    case VERIFICANDO_LDR:
+      html += "Dica: A escuridao as vezes revela segredos. Encontre o sensor de luz e cubra-o.";
+      break;
+    case JOGO_GENIUS:
+      html += "Dica: Repita a sequencia de luzes e sons. Memoria e atencao sao a chave!";
+      break;
+    case ENTRADA_CODIGO_SECRETO:
+      html += "Dica: Use a senha revelada para abrir a caixa!";
+      break;
+    case FINALIZADO:
+      html += "Parabens! Voce resolveu o puzzle!";
+      break;
+    default:
+      html += "Aguardando o proximo passo...";
+      break;
+  }
+  html += "</div></body></html>";
+  return html;
+}
+
+void handleRoot() {
+  server.send(200, "text/html", gerarPaginaHTML());
+}
+
 /***********************************************************************
  Tasks do FreeRTOS
  ***********************************************************************/
@@ -270,11 +319,11 @@ void taskObterEvento(void *pvParameters) {
 
 void taskAtualizacaoContinua(void *pvParameters) {
     unsigned long ultimoUpdateDisplay = 0;
-    const int INTERVALO_DISPLAY = 50;
+    const int INTERVALO_DISPLAY = 40;
 
     for(;;) {
+        meuIMU.atualizar();
         if (estadoAtual == VERIFICANDO_INCLINACAO) {
-            meuIMU.atualizar();
             if (millis() - ultimoUpdateDisplay > INTERVALO_DISPLAY) {
                 meuDisplay.exibirDadosIMU(meuIMU.getRoll(), meuIMU.getPitch());
                 ultimoUpdateDisplay = millis();
@@ -290,10 +339,17 @@ void taskAtualizacaoContinua(void *pvParameters) {
         if (estadoAtual == JOGO_GENIUS) {
             meuJogoGenius.loop();
         }
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }
 
+
+void taskWiFiWebServer(void *pvParameters) {
+    for (;;) {
+        server.handleClient(); // Escuta por requisições HTTP
+        vTaskDelay(pdMS_TO_TICKS(5)); // Pequena pausa para não sobrecarregar
+    }
+}
 
 void setup() {
     Serial.begin(115200);
@@ -307,6 +363,24 @@ void setup() {
     meuLDR.inicializar();
     meuJogoGenius.inicializar();
 
+    // --- Inicia a conexão Wi-Fi ---
+    Serial.print("Conectando a ");
+    Serial.println(ssid);
+    meuDisplay.exibirMensagem("Conectando", "Wi-Fi...", 2);
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("\nWi-Fi conectado!");
+    Serial.print("Endereco IP: ");
+    Serial.println(WiFi.localIP());
+
+    // --- Configura o Servidor Web ---
+    server.on("/", handleRoot); // Rota principal
+    server.begin();
+    Serial.println("Servidor HTTP iniciado.");
+
     iniciaMaquinaEstados();
     executarAcao(A01_TELA_BEMVINDO);
 
@@ -316,6 +390,7 @@ void setup() {
         xTaskCreate(taskMaqEstados, "MaqEstados", 4096, NULL, 2, NULL);
         xTaskCreate(taskObterEvento, "ObterEvento", 4096, NULL, 1, NULL);
         xTaskCreate(taskAtualizacaoContinua, "Atualiza", 2048, NULL, 1, NULL);
+        xTaskCreate(taskWiFiWebServer, "WebServer", 4096, NULL, 1, NULL);
     } else {
         Serial.println("Erro ao criar a fila!");
     }

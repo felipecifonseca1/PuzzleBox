@@ -23,14 +23,52 @@ void Buzzer::tocarSomErro() {
 }
 
 void Buzzer::tocarSomVitoria() {
-    // Toca uma sequência de notas curtas
-    tone(_pin, NOTE_C4, 100);
-    vTaskDelay(pdMS_TO_TICKS(120)); // Pausa entre as notas
-    tone(_pin, NOTE_E4, 100);
-    vTaskDelay(pdMS_TO_TICKS(120));
-    tone(_pin, NOTE_G4, 100);
-    vTaskDelay(pdMS_TO_TICKS(120));
-    tone(_pin, NOTE_C4, 200); // Nota final mais longa
+    // Uma fanfarra de vitória mais longa e elaborada
+    int melodia[] = {
+        // Frase 1: Arpejo ascendente
+        NOTE_C4, NOTE_E4, NOTE_G4, NOTE_C5,
+        // Frase 2: Repete com mais ritmo
+        NOTE_C4, NOTE_E4, NOTE_C4, NOTE_E4,
+        // Frase 3: Construindo a tensão
+        NOTE_G4, NOTE_AS4, NOTE_C5, NOTE_G4,
+        // Frase Final: Resolução triunfante
+        NOTE_DS5, NOTE_DS5, NOTE_DS5, NOTE_C5
+    };
+
+    // Duração de cada nota em milissegundos
+    int duracoes[] = {
+        200, 200, 200, 400, // Frase 1
+        150, 150, 150, 150, // Frase 2
+        200, 200, 200, 200, // Frase 3
+        200, 200, 200, 400, // Frase 1
+        150, 150, 150, 150, // Frase 2
+        200, 200, 200, 200, // Frase 3
+        150, 150, 150, 500, // Frase Final
+        200, 200, 200, 400, // Frase 1
+        150, 150, 150, 150, // Frase 2
+        200, 200, 200, 200, // Frase 3
+        200, 200, 200, 400, // Frase 1
+        150, 150, 150, 150, // Frase 2
+        200, 200, 200, 200, // Frase 3
+        150, 150, 150, 500  // Frase Final
+    };
+
+    // O tamanho do array agora é 16
+    int tamanhoDaMusica = 16;
+
+    // Itera sobre as notas da melodia
+    for (int i = 0; i < tamanhoDaMusica; i++) {
+        // Pega a duração da nota atual
+        int duracaoNota = duracoes[i];
+        
+        // Toca a nota
+        tone(_pin, melodia[i], duracaoNota);
+
+        int pausaEntreNotas = duracaoNota * 1.30;
+        vTaskDelay(pdMS_TO_TICKS(pausaEntreNotas));
+
+        noTone(_pin);
+    }
 }
 
 void Buzzer::tocarBeepTecla() {
