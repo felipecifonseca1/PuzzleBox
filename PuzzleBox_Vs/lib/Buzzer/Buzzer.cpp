@@ -9,6 +9,10 @@ void Buzzer::inicializar() {
     pinMode(_pin, OUTPUT);
 }
 
+int Buzzer::getPin(){
+    return _pin;
+}
+
 void Buzzer::tocarNota(int frequencia, int duracao) {
     // tone(pino, frequencia, duracao_em_ms)
     tone(_pin, frequencia, duracao);

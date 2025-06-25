@@ -31,6 +31,8 @@ public:
     
     void tocarNota(int frequencia, int duracao);
 
+    int getPin();
+
 private:
     uint8_t _pin; // Pino do buzzer
 };

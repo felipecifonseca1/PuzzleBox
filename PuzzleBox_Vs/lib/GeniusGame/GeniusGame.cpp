@@ -1,8 +1,8 @@
 #include "GeniusGame.h"
 
 // Constantes para controlar o tempo do pisca-pisca 
-const int LED_ON_DURATION = 1000; 
-const int LED_OFF_DURATION = 500; 
+const int LED_ON_DURATION = 500;  // Duração que o LED fica aceso
+const int LED_OFF_DURATION = 250; // Pausa entre os LEDs
 
 GeniusGame::GeniusGame(const int ledPins[GENIUS_SEQUENCE_LENGTH], const int buttonPins[GENIUS_SEQUENCE_LENGTH], DisplayOLED& display, Buzzer& buzzer)
     : _display(display), _buzzer(buzzer) {
@@ -18,11 +18,14 @@ void GeniusGame::inicializar() {
         digitalWrite(_ledPins[i], LOW);
         pinMode(_buttonPins[i], INPUT_PULLUP);
     }
-    randomSeed(analogRead(35)); 
 }
 
 void GeniusGame::_gerarSequencia() {
-    for (int i = 0; i < GENIUS_SEQUENCE_LENGTH; i++) _sequencia[i] = i;
+    randomSeed(esp_random()); 
+
+    for (int i = 0; i < GENIUS_SEQUENCE_LENGTH; i++) {
+        _sequencia[i] = i;
+    }
     for (int i = GENIUS_SEQUENCE_LENGTH - 1; i > 0; i--) {
         int j = random(i + 1);
         int temp = _sequencia[i];
@@ -37,14 +40,12 @@ void GeniusGame::iniciarNovoJogo() {
     _passoAtualShow = 0;
     _estadoAtual = MOSTRANDO_LED; 
     _ultimoTempo = millis();
-    _display.exibirMensagem("Genius:", "Observe...", 2);
-    vTaskDelay(pdMS_TO_TICKS(500)); 
 }
 
 int GeniusGame::_lerBotoes() {
     for (int i = 0; i < GENIUS_SEQUENCE_LENGTH; i++) {
         if (digitalRead(_buttonPins[i]) == LOW) {
-            vTaskDelay(pdMS_TO_TICKS(200)); 
+            vTaskDelay(pdMS_TO_TICKS(50)); 
             while(digitalRead(_buttonPins[i]) == LOW); 
             return i;
         }
@@ -59,15 +60,13 @@ bool GeniusGame::isJogoFinalizado() {
 void GeniusGame::loop() {
     switch (_estadoAtual) {
         case MOSTRANDO_LED: {
-            
             if (_passoAtualShow < GENIUS_SEQUENCE_LENGTH) {
                 if (millis() - _ultimoTempo > LED_OFF_DURATION) {
                     int ledIndex = _sequencia[_passoAtualShow];
                     int notes[] = {262, 330, 392};
 
                     digitalWrite(_ledPins[ledIndex], HIGH);
-                    _buzzer.tocarNota(notes[ledIndex], LED_ON_DURATION);
-                    
+                    _buzzer.tocarNota(notes[ledIndex],100);               
                     _ultimoTempo = millis();
                     _estadoAtual = MOSTRANDO_PAUSA;
                 }
@@ -80,7 +79,10 @@ void GeniusGame::loop() {
 
         case MOSTRANDO_PAUSA: {
             if (millis() - _ultimoTempo > LED_ON_DURATION) {
-                digitalWrite(_ledPins[_sequencia[_passoAtualShow]], LOW);
+                int ledIndex = _sequencia[_passoAtualShow];
+                digitalWrite(_ledPins[ledIndex], LOW);
+                noTone(_buzzer.getPin()); 
+        
                 _passoAtualShow++;
                 _ultimoTempo = millis();
                 _estadoAtual = MOSTRANDO_LED;
@@ -93,8 +95,10 @@ void GeniusGame::loop() {
             if (botaoPressionado != -1) {
                 int notes[] = {262, 330, 392};
                 digitalWrite(_ledPins[botaoPressionado], HIGH);
-                _buzzer.tocarNota(notes[botaoPressionado], 150);
+                _buzzer.tocarNota(notes[botaoPressionado],100);
+                vTaskDelay(pdMS_TO_TICKS(150)); 
                 digitalWrite(_ledPins[botaoPressionado], LOW);
+                noTone(_buzzer.getPin());
                 
                 if (botaoPressionado == _sequencia[_passoAtualJogador]) {
                     _passoAtualJogador++;
@@ -110,16 +114,13 @@ void GeniusGame::loop() {
 
         case VITORIA:
             _display.exibirMensagem("Genius:", "VITORIA!", 2);
-            _buzzer.tocarSomVitoria();
             _estadoAtual = OCIOSO; 
             break;
 
         case DERROTA: {
             _display.exibirMensagem("Genius:", "ERROU!", 2);
             _buzzer.tocarSomErro();
-            // Pausa para o jogador ver a mensagem de erro.
             vTaskDelay(pdMS_TO_TICKS(1500)); 
-
             iniciarNovoJogo(); 
             break;
         }
